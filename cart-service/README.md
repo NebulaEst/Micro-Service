@@ -1,58 +1,84 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Cart Service
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Laravel 13 API service backed by its own PostgreSQL database. It runs next
+to the Express/MySQL Product Service; the two services communicate through
+their APIs and do not share a database.
 
-## About Laravel
+## Run both services with Docker
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+Requirements: Docker Desktop, PHP 8.3+, and Composer 2. From the
+`Micro-Service` project root, install the Cart Service dependencies and
+initialize its environment and application key once:
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
-
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
-
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+```powershell
+Set-Location cart-service
+composer install
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+if (-not (Select-String -Path .env -Pattern '^APP_KEY=base64:' -Quiet)) { php artisan key:generate }
+Set-Location ..
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Build and start both services and their databases:
 
-## Contributing
+```powershell
+docker compose up --build -d
+docker compose ps
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+The Cart Service is available at `http://localhost:3001`, Product Service at
+`http://localhost:3000`. The Cart Service runs its migrations on startup.
+Follow its startup logs with `docker compose logs -f cart-service`.
 
-## Code of Conduct
+To run only Cart Service and PostgreSQL, use the Compose file in this folder:
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```powershell
+Set-Location cart-service
+composer install
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+if (-not (Select-String -Path .env -Pattern '^APP_KEY=base64:' -Quiet)) { php artisan key:generate }
+docker compose up --build -d
+```
 
-## Security Vulnerabilities
+## Run Cart Service locally
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+With PostgreSQL running through `cart-service/docker-compose.yml`, install the
+PHP dependencies, migrate the database, and start Laravel:
 
-## License
+```powershell
+Set-Location cart-service
+composer install
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+if (-not (Select-String -Path .env -Pattern '^APP_KEY=base64:' -Quiet)) { php artisan key:generate }
+docker compose up -d cart-db
+php artisan migrate
+php artisan serve --port=3001
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Requires PHP 8.3+, Composer 2, and the `pdo_pgsql` extension. For local
+development, `.env.example` points to PostgreSQL on `127.0.0.1`; Compose
+overrides the host with `cart-db` inside the container network.
+
+## Cart API
+
+All responses are JSON. Invalid request bodies return `422`; missing cart
+items and unmatched routes return `404`.
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/carts/{userId}` | Get a user's items and total quantity |
+| `POST` | `/carts` | Add an item, or increase its quantity if it already exists |
+| `PUT` | `/carts/items/{id}` | Set an item's quantity |
+| `DELETE` | `/carts/items/{id}` | Remove an item |
+| `DELETE` | `/carts/{userId}` | Empty a user's cart |
+
+Example request bodies:
+
+```json
+{"user_id": 1, "product_id": 1, "quantity": 2}
+```
+
+```json
+{"quantity": 5}
+```
+
+Run the Cart Service test suite with `php artisan test`.

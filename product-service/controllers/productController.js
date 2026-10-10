@@ -152,4 +152,22 @@ async function update(req, res) {
     }
 }
 
-module.exports = { index, show, create, update };
+async function destroy(req, res) {
+    try {
+        const deleted = await productModel.deleteProduct(req.params.id);
+        if (!deleted) {
+            return res.status(404).json({ message: 'Product tidak ditemukan' });
+        }
+
+        return res.json({
+            message: 'Berhasil menghapus product'
+        });
+    } catch (error) {
+        return res.status(500).json({
+            message: 'Gagal menghapus product',
+            error: error.message
+        });
+    }
+}
+
+module.exports = { index, show, create, update, destroy };

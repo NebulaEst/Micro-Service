@@ -8,7 +8,12 @@ use Illuminate\Database\Eloquent\Builder;
 class CartItem extends Model
 {
     protected $table = 'cart_items';
-    protected $fillable = ['user_id', 'product_id', 'quantity'];
+
+    protected $fillable = [
+        'user_id',
+        'product_id',
+        'quantity',
+    ];
 
     public function scopeForUser(Builder $query, int $userId): Builder
     {

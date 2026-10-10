@@ -2,12 +2,10 @@
 
 namespace App\Exceptions;
 
-use Exception;
-
-class CartItemNotFoundException extends Exception
+class CartItemNotFoundException extends \RuntimeException
 {
     public function __construct(int $id)
     {
-        parent::__construct("Cart item with ID {$id} not found.");
+        parent::__construct("Item keranjang dengan id {$id} tidak ditemukan");
     }
 }
