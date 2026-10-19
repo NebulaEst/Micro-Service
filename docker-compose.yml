@@ -1,4 +1,51 @@
 services:
+  review-service:
+    build:
+      context: ./review-service
+      dockerfile: Dockerfile
+    ports:
+      - "3002:3002"
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3002
+      FLASK_DEBUG: "0"
+      MONGO_URI: mongodb://appuser:apppassword@review-db:27017/?authSource=admin
+      MONGO_DB_NAME: reviewdb
+      PRODUCT_SERVICE_URL: http://product-service:3000
+    depends_on:
+      review-db:
+        condition: service_healthy
+      product-service:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:3002/health', timeout=3)"
+      interval: 10s
+      retries: 5
+      start_period: 10s
+      timeout: 5s
+
+  review-db:
+    image: mongo:7
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: appuser
+      MONGO_INITDB_ROOT_PASSWORD: apppassword
+    ports:
+      - "27017:27017"
+    volumes:
+      - review-db-data:/data/db
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - mongosh --quiet --username "$$MONGO_INITDB_ROOT_USERNAME" --password "$$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --eval "db.adminCommand('ping').ok"
+      interval: 10s
+      retries: 5
+      start_period: 20s
+      timeout: 5s
+
   cart-service:
     build:
       context: ./cart-service
@@ -21,7 +68,11 @@ services:
       cart-db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "php", "-r", "exit(file_get_contents('http://127.0.0.1:3001/up') !== false ? 0 : 1);"]
+      test:
+        - CMD
+        - php
+        - -r
+        - "exit(file_get_contents('http://127.0.0.1:3001/up') !== false ? 0 : 1);"
       interval: 10s
       retries: 5
       start_period: 20s
@@ -44,45 +95,52 @@ services:
       timeout: 5s
 
   product-service:
-    build: 
+    build:
       context: ./product-service
       dockerfile: Dockerfile
     ports:
       - "3000:3000"
     environment:
-      - DB_HOST=product-db
-      - DB_USER=appuser
-      - DB_PASSWORD=apppassword
-      - DB_NAME=productdb
+      DB_HOST: product-db
+      DB_USER: appuser
+      DB_PASSWORD: apppassword
+      DB_NAME: productdb
     depends_on:
       product-db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      test:
+        - CMD
+        - node
+        - -e
+        - "require('http').get('http://127.0.0.1:3000/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
       interval: 10s
       retries: 5
       start_period: 10s
       timeout: 5s
 
   product-db:
-        image: mysql:8.0
-        ports:
-          - "3306:3306"
-        environment:
-          - MYSQL_DATABASE=productdb
-          - MYSQL_USER=appuser
-          - MYSQL_PASSWORD=apppassword
-          - MYSQL_ROOT_PASSWORD=rootpassword
-        volumes:
-          - product-db-data:/var/lib/mysql
-          - ./product-service/database/init.sql:/docker-entrypoint-initdb.d/init.sql
-        healthcheck:
-          test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "--user=root", "--password=rootpassword"]
-          interval: 10s
-          retries: 5
-          start_period: 30s
-          timeout: 5s
+    image: mysql:8.0
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_DATABASE: productdb
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: apppassword
+      MYSQL_ROOT_PASSWORD: rootpassword
+    volumes:
+      - product-db-data:/var/lib/mysql
+      - ./product-service/database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - mysqladmin ping --host=localhost --user=root --password="$$MYSQL_ROOT_PASSWORD"
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 5s
 
 volumes:
+  review-db-data:
   cart-db-data:
   product-db-data:
