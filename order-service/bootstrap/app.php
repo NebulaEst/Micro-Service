@@ -18,5 +18,21 @@ return Application::configure(basePath: dirname(__DIR__))
         //
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
-    })->create();
+    $exceptions->render(function (
+        \App\Exceptions\OrderConflictException $e,
+        \Illuminate\Http\Request $request
+    ) {
+        return response()->json([
+            'message' => $e->getMessage(),
+        ], 409);
+    });
+
+    $exceptions->render(function (
+        \App\Exceptions\UpstreamServiceException $e,
+        \Illuminate\Http\Request $request
+    ) {
+        return response()->json([
+            'message' => $e->getMessage(),
+        ], 503);
+    });
+})->create();
