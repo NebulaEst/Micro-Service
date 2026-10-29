@@ -139,8 +139,53 @@ services:
       retries: 5
       start_period: 30s
       timeout: 5s
+  
+  order-db:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: orderdb
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: apppassword
+      MYSQL_ROOT_PASSWORD: rootpassword
+    ports:
+      - "3307:3306"
+    volumes:
+      - order-db-data:/var/lib/mysql
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - mysqladmin ping --host=localhost --user=root --password="$$MYSQL_ROOT_PASSWORD"
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 5s
+
+
+  order-service:
+    build:
+      context: ./order-service
+      dockerfile: Dockerfile
+    ports:
+      - "3003:80"
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_URL: http://localhost:3003
+      DB_CONNECTION: mysql
+      DB_HOST: order-db
+      DB_PORT: 3306
+      DB_DATABASE: orderdb
+      DB_USERNAME: appuser
+      DB_PASSWORD: apppassword
+      LOG_CHANNEL: stderr
+      CART_SERVICE_URL: http://cart-service:3001
+      PRODUCT_SERVICE_URL: http://product-service:3000
+
+
+
 
 volumes:
   review-db-data:
   cart-db-data:
   product-db-data:
+  order-db-data:
