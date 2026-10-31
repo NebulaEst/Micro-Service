@@ -2,9 +2,9 @@
 
 namespace App\Services;
 
-use illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use throwable;
+use Throwable;
 
 class ProductService
 {
@@ -12,7 +12,7 @@ class ProductService
     {
         try {
             $response = Http::baseUrl(config('services.product.base_url'))
-                ->get("/api/products/{$productId}");
+                ->get("/products/{$productId}");
 
             if ($response->successful() && isset($response['data'])) {
                 return $response['data'];
