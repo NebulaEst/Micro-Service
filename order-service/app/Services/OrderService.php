@@ -2,10 +2,11 @@
 
 namespace App\Services;
 
+use App\Exceptions\OrderConflictException;
 use App\Exceptions\UpstreamServiceException;
 use App\Models\Order;
 use Illuminate\Support\Facades\DB;
-use Throwable;
+use Illuminate\Support\Facades\Log;
 
 class OrderService
 {
@@ -19,7 +20,7 @@ class OrderService
         $cart = $this->cartClient->getCart($userId);
 
         if (empty($cart['items'])) {
-            throw new UpstreamServiceException(
+            throw new OrderConflictException(
                 'Keranjang kosong.'
             );
         }
@@ -32,12 +33,20 @@ class OrderService
             $quantity = (int) $cartItem['quantity'];
 
             if ($quantity < 1) {
-                throw new UpstreamServiceException(
+                throw new OrderConflictException(
                     'Jumlah produk dalam keranjang tidak valid.'
                 );
             }
 
             $product = $this->productClient->getProduct($productId);
+
+            $stock = (int) $product['stock'];
+
+            if ($quantity > $stock) {
+                throw new OrderConflictException(
+                    "Stok {$product['name']} tidak mencukupi: diminta {$quantity}, tersedia {$stock}."
+                );
+            }
 
             $unitPrice = (float) $product['price'];
             $subtotal = round($unitPrice * $quantity, 2);
@@ -53,7 +62,7 @@ class OrderService
             $totalAmount += $subtotal;
         }
 
-        return DB::transaction(function () use (
+        $order = DB::transaction(function () use (
             $userId,
             $items,
             $totalAmount
@@ -68,5 +77,17 @@ class OrderService
 
             return $order->load('items')->toArray();
         });
+
+        try {
+            $this->cartClient->clearCart($userId);
+        } catch (UpstreamServiceException $e) {
+            Log::warning('Gagal mengosongkan keranjang setelah checkout.', [
+                'user_id' => $userId,
+                'order_id' => $order['id'],
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return $order;
     }
 }

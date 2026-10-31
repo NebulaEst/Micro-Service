@@ -15,7 +15,7 @@ class CartClient
                 config('services.cart.base_url')
             )
                 ->timeout(5)
-                ->get("/api/carts/{$userId}");
+                ->get("/carts/{$userId}");
 
             if (! $response->successful()) {
                 throw new UpstreamServiceException(
@@ -42,4 +42,30 @@ class CartClient
             );
         }
     }
+
+    public function clearCart(int $userId): void
+    {
+        try {
+            $response = Http::baseUrl(
+                config('services.cart.base_url')
+            )
+                ->timeout(5)
+                ->delete("/carts/{$userId}");
+
+            if (! $response->successful()) {
+                throw new UpstreamServiceException(
+                    'Gagal mengosongkan keranjang dari Cart Service.'
+                );
+            }
+        } catch (UpstreamServiceException $e) {
+            throw $e;
+        } catch (Throwable $e) {
+            report($e);
+
+            throw new UpstreamServiceException(
+                'Cart Service tidak dapat diakses.'
+            );
+        }
+    }
+
 }
