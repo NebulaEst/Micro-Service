@@ -8,6 +8,7 @@ use App\Http\Requests\StoreOrderRequest;
 use App\Services\OrderService;
 use Illuminate\Http\JsonResponse;
 use Throwable;
+use App\Models\Order;
 
 class OrderController extends Controller
 {
@@ -44,6 +45,37 @@ class OrderController extends Controller
 
             $response = [
                 'message' => 'Terjadi kesalahan saat checkout.',
+            ];
+
+            if (config('app.debug')) {
+                $response['error'] = $e->getMessage();
+            }
+
+            return response()->json($response, 500);
+        }
+    }
+
+    public function show(int $id): JsonResponse
+    {
+        try {
+            $order = Order::with('items')->find($id);
+
+            if (!$order) {
+                return response()->json([
+                    'message' => "Pesanan dengan id {$id} tidak ditemukan.",
+                ], 404);
+            }
+
+            return response()->json([
+                'message' => 'Berhasil mengambil pesanan',
+                'data' => $order,
+            ], 200);
+
+        } catch (Throwable $e) {
+            report($e);
+
+            $response = [
+                'message' => 'Terjadi kesalahan saat mengambil pesanan.',
             ];
 
             if (config('app.debug')) {
